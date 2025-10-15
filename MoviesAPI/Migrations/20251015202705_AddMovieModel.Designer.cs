@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MoviesAPI.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MoviesAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251015202705_AddMovieModel")]
+    partial class AddMovieModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -136,46 +139,6 @@ namespace MoviesAPI.Migrations
                         .HasDatabaseName("index_users_username");
 
                     b.ToTable("users", (string)null);
-                });
-
-            modelBuilder.Entity("MoviesAPI.Models.Watchlist", b =>
-                {
-                    b.Property<int>("user_id")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("movie_id")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("added_at")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("added_at")
-                        .HasDefaultValueSql("NOW()");
-
-                    b.HasKey("user_id", "movie_id");
-
-                    b.HasIndex("movie_id");
-
-                    b.ToTable("watchlists", (string)null);
-                });
-
-            modelBuilder.Entity("MoviesAPI.Models.Watchlist", b =>
-                {
-                    b.HasOne("MoviesAPI.Models.Movie", "Movie")
-                        .WithMany()
-                        .HasForeignKey("movie_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MoviesAPI.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("user_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Movie");
-
-                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

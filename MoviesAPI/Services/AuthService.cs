@@ -63,7 +63,8 @@ public class AuthService : IAuthService
             email = createdUser.email,
             username = createdUser.username,
             display_name = createdUser.display_name,
-            creation_date = createdUser.creation_date
+            creation_date = createdUser.creation_date,
+            role = createdUser.role // new field
         };
 
         return (true, null, userResponse, token);
@@ -106,7 +107,8 @@ public class AuthService : IAuthService
             email = user.email,
             username = user.username,
             display_name = user.display_name,
-            creation_date = user.creation_date
+            creation_date = user.creation_date,
+            role = user.role // new field
         };
 
         return (true, null, userResponse, token);
@@ -124,6 +126,7 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Sub, user.id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.email),
             new Claim("username", user.username),
+            new Claim(ClaimTypes.Role, user.role), // new line
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()) // token id
         };
 

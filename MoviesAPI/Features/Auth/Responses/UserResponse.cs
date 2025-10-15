@@ -7,6 +7,7 @@ public class UserResponse // no password field for the response! (contains only 
     public string username { get; set; } = "";
     public string display_name { get; set; } = "";
     public DateTime creation_date { get; set; }
+    public string role { get; set; } = ""; // new field
 }
 
 public class AuthResponse // returned by /auth/register and /auth/login

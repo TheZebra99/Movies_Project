@@ -10,6 +10,8 @@ public class User
     [System.Text.Json.Serialization.JsonIgnore]
     public string password_hash { get; private set; } = "";
 
+    public string role { get; private set; } = "User"; // role
+
     // constructors
     protected User()
     {}
@@ -49,6 +51,14 @@ public class User
     public bool VerifyPassword(string raw_password)
     {
         return BCrypt.Net.BCrypt.Verify(raw_password, password_hash);
+    }
+
+    public void SetRole(string newRole)
+    {
+        if (newRole != "User" && newRole != "Admin")
+            throw new ArgumentException("Invalid role. Must be 'User' or 'Admin'", nameof(newRole));
+        
+        role = newRole;
     }
 
 }
