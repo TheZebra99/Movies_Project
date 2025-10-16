@@ -19,6 +19,8 @@ public interface IMovieRepository
     Task<(IEnumerable<Movie> Movies, int TotalCount)> GetMoviesWithFiltersAsync(MovieQueryParameters parameters);
     // new method to prevent the creation of duplicate movies
     Task<bool> MovieExistsAsync(string title, DateTime releaseDate);
+    // new method to sort the films (keep GetMoviesWithFiltersAsync just in case...)
+    Task<(IEnumerable<(Movie Movie, double? AverageRating, int ReviewCount)> Movies, int TotalCount)> GetMoviesWithFiltersAndRatingsAsync(MovieQueryParameters parameters);
 }
 
 public class MovieRepository : IMovieRepository // using the methods from the interface
@@ -76,64 +78,138 @@ public class MovieRepository : IMovieRepository // using the methods from the in
             .AnyAsync(m => m.id == id);
     }
 
+    // update the old method to be in line with the other one (leave it just in case)
     public async Task<(IEnumerable<Movie> Movies, int TotalCount)> GetMoviesWithFiltersAsync(MovieQueryParameters parameters)
+    {
+        // call the new method with ratings
+        var (moviesWithRatings, totalCount) = await GetMoviesWithFiltersAndRatingsAsync(parameters);
+        
+        // extract just the movies (ignore ratings)
+        var movies = moviesWithRatings.Select(m => m.Movie);
+        
+        return (movies, totalCount);
+    }
+
+    // new method to prevent duplicates (with added time conversion)
+    public async Task<bool> MovieExistsAsync(string title, DateTime releaseDate)
+    {
+        var normalizedTitle = title.Trim().ToLower();
+
+        // Convert to UTC if not already
+        var releaseDateUtc = releaseDate.Kind == DateTimeKind.Utc
+            ? releaseDate
+            : DateTime.SpecifyKind(releaseDate, DateTimeKind.Utc);
+
+        return await _context.Movies
+            .AnyAsync(m =>
+                m.title.ToLower() == normalizedTitle &&
+                m.release_date.Date == releaseDateUtc.Date
+            );
+    }
+    
+    // new method to get sorted movies
+    public async Task<(IEnumerable<(Movie Movie, double? AverageRating, int ReviewCount)> Movies, int TotalCount)> GetMoviesWithFiltersAndRatingsAsync(MovieQueryParameters parameters)
     {
         // start with all movies
         var query = _context.Movies.AsQueryable();
-
+        
         // apply search filter (title contains search term)
         if (!string.IsNullOrWhiteSpace(parameters.search))
         {
             var searchTerm = parameters.search.Trim().ToLower();
             query = query.Where(m => m.title.ToLower().Contains(searchTerm));
         }
-
+        
         // apply genre filter (exact match, case-insensitive)
         if (!string.IsNullOrWhiteSpace(parameters.genre))
         {
             var genreFilter = parameters.genre.Trim().ToLower();
             query = query.Where(m => m.genre != null && m.genre.ToLower() == genreFilter);
         }
-
+        
         // apply director filter (contains director name)
         if (!string.IsNullOrWhiteSpace(parameters.director))
         {
             var directorFilter = parameters.director.Trim().ToLower();
             query = query.Where(m => m.director != null && m.director.ToLower().Contains(directorFilter));
         }
-
+        
         // apply year filter (exact year match)
         if (parameters.year.HasValue)
         {
             query = query.Where(m => m.release_date.Year == parameters.year.Value);
         }
-
+        
         // get total count before pagination
         var totalCount = await query.CountAsync();
-
-        // apply pagination
-        var movies = await query
-            .OrderByDescending(m => m.created_at) // newest first
-            .Skip((parameters.page - 1) * parameters.pageSize) // skip to the correct page
-            .Take(parameters.pageSize) // take only pageSize items
+        
+        // join with reviews to get rating stats
+        var moviesWithRatings = await query
+            .GroupJoin(
+                _context.Reviews,
+                movie => movie.id,
+                review => review.movie_id,
+                (movie, reviews) => new
+                {
+                    Movie = movie,
+                    AverageRating = reviews.Any() ? (double?)reviews.Average(r => r.rating) : null,
+                    ReviewCount = reviews.Count()
+                }
+            )
             .ToListAsync();
-
-        return (movies, totalCount);
-    }
-    // new method to prevent duplicates (with added time conversion)
-    public async Task<bool> MovieExistsAsync(string title, DateTime releaseDate)
-    {
-        var normalizedTitle = title.Trim().ToLower();
         
-        // Convert to UTC if not already
-        var releaseDateUtc = releaseDate.Kind == DateTimeKind.Utc 
-            ? releaseDate 
-            : DateTime.SpecifyKind(releaseDate, DateTimeKind.Utc);
+        // apply sorting
+        IEnumerable<(Movie Movie, double? AverageRating, int ReviewCount)> sortedMovies;
         
-        return await _context.Movies
-            .AnyAsync(m => 
-                m.title.ToLower() == normalizedTitle && 
-                m.release_date.Date == releaseDateUtc.Date
-            );
+        switch (parameters.sortBy)
+        {
+            case MovieSortBy.Rating:
+                sortedMovies = parameters.sortDirection == SortDirection.Descending
+                    ? moviesWithRatings.OrderByDescending(m => m.AverageRating ?? 0)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount))
+                    : moviesWithRatings.OrderBy(m => m.AverageRating ?? 0)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount));
+                break;
+            
+            case MovieSortBy.ReviewCount:
+                sortedMovies = parameters.sortDirection == SortDirection.Descending
+                    ? moviesWithRatings.OrderByDescending(m => m.ReviewCount)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount))
+                    : moviesWithRatings.OrderBy(m => m.ReviewCount)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount));
+                break;
+            
+            case MovieSortBy.ReleaseDate:
+                sortedMovies = parameters.sortDirection == SortDirection.Descending
+                    ? moviesWithRatings.OrderByDescending(m => m.Movie.release_date)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount))
+                    : moviesWithRatings.OrderBy(m => m.Movie.release_date)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount));
+                break;
+            
+            case MovieSortBy.Title:
+                sortedMovies = parameters.sortDirection == SortDirection.Descending
+                    ? moviesWithRatings.OrderByDescending(m => m.Movie.title)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount))
+                    : moviesWithRatings.OrderBy(m => m.Movie.title)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount));
+                break;
+            
+            default: // CreatedDate
+                sortedMovies = parameters.sortDirection == SortDirection.Descending
+                    ? moviesWithRatings.OrderByDescending(m => m.Movie.created_at)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount))
+                    : moviesWithRatings.OrderBy(m => m.Movie.created_at)
+                        .Select(m => (m.Movie, m.AverageRating, m.ReviewCount));
+                break;
+        }
+        
+        // apply pagination
+        var paginatedMovies = sortedMovies
+            .Skip((parameters.page - 1) * parameters.pageSize)
+            .Take(parameters.pageSize)
+            .ToList();
+        
+        return (paginatedMovies, totalCount);
     }
 }

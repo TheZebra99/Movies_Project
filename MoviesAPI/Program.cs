@@ -28,6 +28,12 @@ builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 
+// added new people/movie repositories and services
+builder.Services.AddScoped<IPersonRepository, PersonRepository>();
+builder.Services.AddScoped<IPersonService, PersonService>();
+builder.Services.AddScoped<IMoviePersonRepository, MoviePersonRepository>();
+builder.Services.AddScoped<IMoviePersonService, MoviePersonService>();
+
 // Add JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
@@ -59,15 +65,21 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// Add Controllers
-builder.Services.AddControllers();
+// new controllers (allow for text to be shown inside Swagger)
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "Movies API", Version = "v1" });
+    c.UseInlineDefinitionsForEnums(); // newly added (alows for text to be shown inside swagger)
     
+    c.SwaggerDoc("v1", new() { Title = "Movies API", Version = "v1" });
+   
     // Add JWT authentication to Swagger UI
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
@@ -77,7 +89,7 @@ builder.Services.AddSwaggerGen(c =>
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
     });
-    
+   
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
         {

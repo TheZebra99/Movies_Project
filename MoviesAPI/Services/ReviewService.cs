@@ -126,6 +126,7 @@ public class ReviewService : IReviewService
             user_id = review.user_id,
             username = review.User.username,
             user_display_name = review.User.display_name,
+            user_profile_pic_url = review.User.profile_pic_url, // new field to include the profile pic
             movie_id = review.movie_id,
             movie_title = review.Movie.title,
             rating = review.rating,

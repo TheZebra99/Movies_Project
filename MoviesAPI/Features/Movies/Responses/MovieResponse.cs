@@ -11,4 +11,8 @@ public class MovieResponse
     public int? runtime_minutes { get; set; }
     public string? poster_url { get; set; }
     public DateTime created_at { get; set; }
+
+    // new rating statistics
+    public double? average_rating { get; set; }
+    public int review_count { get; set; }
 }

@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoviesAPI.Features.Auth.Requests;
 using MoviesAPI.Features.Auth.Responses;
 using MoviesAPI.Services;
+using System.Security.Claims;
 
 namespace MoviesAPI.Features.Auth;
 
@@ -55,5 +57,76 @@ public class AuthController : ControllerBase // inherit from base class
         };
 
         return Ok(response); // 200 http code
+    }
+
+    // new endpoint for logging out
+    // POST /api/auth/logout - Logout (token is actually cleared on frontend)
+    [HttpPost("logout")]
+    [Authorize]
+    public IActionResult Logout()
+    {
+        // with JWT, logout is handled client-side by deleting the token
+        // this endpoint exists for consistency and future token blacklisting
+        return Ok(new { message = "Logged out successfully. Please delete your token." });
+    }
+
+    // new endpoint for changing the password
+    // POST /api/auth/change-password - Change password
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var userId = GetCurrentUserId();
+        var (success, error) = await _authService.ChangePasswordAsync(userId, request.current_password, request.new_password);
+
+        if (!success)
+            return BadRequest(new { error });
+
+        return Ok(new { message = "Password changed successfully" });
+    }
+
+    // helper method for changing the password
+    private int GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+        if (userIdClaim == null)
+            throw new UnauthorizedAccessException("User ID not found in token");
+        return int.Parse(userIdClaim.Value);
+    }
+
+    // new endpoint for getting the users profile
+    // GET /api/auth/profile - Get current user profile
+    [HttpGet("profile")]
+    [Authorize]
+    public async Task<IActionResult> GetProfile()
+    {
+        var userId = GetCurrentUserId();
+        var (success, error, user) = await _authService.GetCurrentUserProfileAsync(userId);
+
+        if (!success)
+            return NotFound(new { error });
+
+        return Ok(user);
+    }
+
+    // new endpoint for changing the profile
+    // PUT /api/auth/profile - Update profile
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var userId = GetCurrentUserId();
+        var (success, error, user) = await _authService.UpdateProfileAsync(userId, request);
+
+        if (!success)
+            return BadRequest(new { error });
+
+        return Ok(user);
     }
 }

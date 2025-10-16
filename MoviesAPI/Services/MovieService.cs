@@ -21,11 +21,13 @@ public interface IMovieService
 public class MovieService : IMovieService
 {
     private readonly IMovieRepository _movieRepository; // take the interface from MovieRepository.cs
+    private readonly IReviewRepository _reviewRepository; // new, take the interface from ReviewRepository.cs
 
-    // constructor for MovieService
-    public MovieService(IMovieRepository movieRepository)
+    // (updated) constructor for MovieService
+    public MovieService(IMovieRepository movieRepository, IReviewRepository reviewRepository)
     {
         _movieRepository = movieRepository;
+        _reviewRepository = reviewRepository;
     }
 
     public async Task<IEnumerable<MovieResponse>> GetAllMoviesAsync()
@@ -35,14 +37,31 @@ public class MovieService : IMovieService
         return movies.Select(m => MapToResponse(m));
     }
 
+    // updated method to include ratings and reviews
     public async Task<MovieResponse?> GetMovieByIdAsync(int id)
     {
         var movie = await _movieRepository.GetByIdAsync(id);
-        // if movie not found, return null
         if (movie == null)
             return null;
-
-        return MapToResponse(movie);
+        
+        // get rating stats
+        var averageRating = await _reviewRepository.GetAverageRatingForMovieAsync(id);
+        var reviewCount = await _reviewRepository.GetReviewCountForMovieAsync(id);
+        
+        return new MovieResponse
+        {
+            id = movie.id,
+            title = movie.title,
+            description = movie.description,
+            release_date = movie.release_date,
+            director = movie.director,
+            genre = movie.genre,
+            runtime_minutes = movie.runtime_minutes,
+            poster_url = movie.poster_url,
+            created_at = movie.created_at,
+            average_rating = averageRating,
+            review_count = reviewCount
+        };
     }
 
     // new, updated method to avoid creating duplicates (Uses MovieExistsAsync)
@@ -120,15 +139,29 @@ public class MovieService : IMovieService
         };
     }
 
+    // new, updated method to include reviews and ratings
     public async Task<PaginatedMoviesResponse> GetMoviesWithFiltersAsync(MovieQueryParameters parameters)
     {
-        var (movies, totalCount) = await _movieRepository.GetMoviesWithFiltersAsync(parameters);
+        var (moviesWithRatings, totalCount) = await _movieRepository.GetMoviesWithFiltersAndRatingsAsync(parameters);
         
         var totalPages = (int)Math.Ceiling(totalCount / (double)parameters.pageSize);
         
         return new PaginatedMoviesResponse
         {
-            movies = movies.Select(m => MapToResponse(m)),
+            movies = moviesWithRatings.Select(m => new MovieResponse
+            {
+                id = m.Movie.id,
+                title = m.Movie.title,
+                description = m.Movie.description,
+                release_date = m.Movie.release_date,
+                director = m.Movie.director,
+                genre = m.Movie.genre,
+                runtime_minutes = m.Movie.runtime_minutes,
+                poster_url = m.Movie.poster_url,
+                created_at = m.Movie.created_at,
+                average_rating = m.AverageRating,
+                review_count = m.ReviewCount
+            }),
             page = parameters.page,
             pageSize = parameters.pageSize,
             totalCount = totalCount,

@@ -15,6 +15,15 @@ public interface IAuthService
     // tuple return type (4 types)
     Task<(bool Success, string? Error, UserResponse? User, string? Token)> RegisterAsync(RegisterRequest request);
     Task<(bool Success, string? Error, UserResponse? User, string? Token)> LoginAsync(LoginRequest request);
+
+    // new method for changing the password
+    Task<(bool Success, string? Error)> ChangePasswordAsync(int userId, string currentPassword, string newPassword);
+
+    // new method for the users profile endpoint
+    Task<(bool Success, string? Error, UserResponse? User)> GetCurrentUserProfileAsync(int userId);
+
+    // new method for updating the profile
+    Task<(bool Success, string? Error, UserResponse? User)> UpdateProfileAsync(int userId, UpdateProfileRequest request);
 }
 
 public class AuthService : IAuthService
@@ -64,7 +73,8 @@ public class AuthService : IAuthService
             username = createdUser.username,
             display_name = createdUser.display_name,
             creation_date = createdUser.creation_date,
-            role = createdUser.role // new field
+            role = createdUser.role, // new field
+            profile_pic_url = user.profile_pic_url // new field to include the profile pic
         };
 
         return (true, null, userResponse, token);
@@ -108,7 +118,8 @@ public class AuthService : IAuthService
             username = user.username,
             display_name = user.display_name,
             creation_date = user.creation_date,
-            role = user.role // new field
+            role = user.role, // new field
+            profile_pic_url = user.profile_pic_url // new field to include the profile pic
         };
 
         return (true, null, userResponse, token);
@@ -140,5 +151,84 @@ public class AuthService : IAuthService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    // new method for changing the password
+    public async Task<(bool Success, string? Error)> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return (false, "User not found");
+
+        try
+        {
+            user.ChangePassword(currentPassword, newPassword);
+            await _userRepository.UpdateAsync(user);
+            return (true, null);
+        }
+        catch (ArgumentException ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    // new method for the users profile endpoint
+    public async Task<(bool Success, string? Error, UserResponse? User)> GetCurrentUserProfileAsync(int userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return (false, "User not found", null);
+
+        var userResponse = new UserResponse
+        {
+            id = user.id,
+            email = user.email,
+            username = user.username,
+            display_name = user.display_name,
+            creation_date = user.creation_date,
+            role = user.role,
+            profile_pic_url = user.profile_pic_url
+        };
+
+        return (true, null, userResponse);
+    }
+
+    // new method for updating the profile
+    public async Task<(bool Success, string? Error, UserResponse? User)> UpdateProfileAsync(int userId, UpdateProfileRequest request)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return (false, "User not found", null);
+
+        // Check if new email already exists (if changing email)
+        if (!string.IsNullOrWhiteSpace(request.email) && request.email.Trim().ToLowerInvariant() != user.email)
+        {
+            if (await _userRepository.EmailExistsAsync(request.email))
+                return (false, "Email already registered", null);
+        }
+
+        // Check if new username already exists (if changing username)
+        if (!string.IsNullOrWhiteSpace(request.username) && request.username.Trim() != user.username)
+        {
+            if (await _userRepository.UsernameExistsAsync(request.username))
+                return (false, "Username already taken", null);
+        }
+
+        // Update profile
+        user.UpdateProfile(request.email, request.username, request.display_name, request.profile_pic_url);
+        await _userRepository.UpdateAsync(user);
+
+        var userResponse = new UserResponse
+        {
+            id = user.id,
+            email = user.email,
+            username = user.username,
+            display_name = user.display_name,
+            creation_date = user.creation_date,
+            role = user.role,
+            profile_pic_url = user.profile_pic_url
+        };
+
+        return (true, null, userResponse);
     }
 }

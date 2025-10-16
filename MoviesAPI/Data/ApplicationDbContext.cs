@@ -14,6 +14,10 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
     public DbSet<Movie> Movies { get; set; } = null!; // New Movies table in the DB
     public DbSet<Watchlist> Watchlists { get; set; } = null!; // New Watchlists table in the DB
     public DbSet<Review> Reviews { get; set; } = null!; // new Reviews table in the DB
+
+    // two new tables - People (for cast and directors) and MoviePeople (many-to-many)
+    public DbSet<Person> People { get; set; } = null!;
+    public DbSet<MoviePerson> MoviePeople { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder modelBuilder) //override the method from DbContext
     {
         base.OnModelCreating(modelBuilder);
@@ -64,6 +68,10 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
                 .HasMaxLength(20)
                 .HasDefaultValue("User")
                 .IsRequired();
+            
+            entity.Property(e => e.profile_pic_url) // new property to include the profile picture
+                .HasColumnName("profile_pic_url")
+                .HasMaxLength(500);
         }
         );
 
@@ -140,57 +148,123 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
                 .HasForeignKey(e => e.movie_id)
                 .OnDelete(DeleteBehavior.Cascade); // if movie is deleted, remove from all watchlists
         });
-        
+
         // configure the table for reviews
         // cascade deletion
         modelBuilder.Entity<Review>(entity =>
         {
             entity.ToTable("reviews");
-            
+
             entity.HasKey(e => e.id);
             entity.Property(e => e.id)
                 .HasColumnName("id")
                 .ValueGeneratedOnAdd(); // auto increment index
-            
+
             entity.Property(e => e.user_id)
                 .HasColumnName("user_id")
                 .IsRequired();
-            
+
             entity.Property(e => e.movie_id)
                 .HasColumnName("movie_id")
                 .IsRequired();
-            
+
             entity.Property(e => e.rating)
                 .HasColumnName("rating")
                 .IsRequired();
-            
+
             entity.Property(e => e.review_text)
                 .HasColumnName("review_text")
                 .HasMaxLength(2000);
-            
+
             entity.Property(e => e.created_at)
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("NOW()");
-            
+
             entity.Property(e => e.updated_at)
                 .HasColumnName("updated_at");
-            
+
             // Foreign key to User
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.user_id)
                 .OnDelete(DeleteBehavior.Cascade); // if user is deleted, remove their reviews
-                
+
             // Foreign key to Movie
             entity.HasOne(e => e.Movie)
                 .WithMany()
                 .HasForeignKey(e => e.movie_id)
                 .OnDelete(DeleteBehavior.Cascade); // if movie is deleted, remove all reviews
-            
+
             // Unique constraint: one review per user per movie
             entity.HasIndex(e => new { e.user_id, e.movie_id })
                 .IsUnique()
                 .HasDatabaseName("index_reviews_user_movie");
+        });
+        
+        // configure the people table (person model)
+        modelBuilder.Entity<Person>(entity =>
+        {
+            entity.ToTable("people");
+            
+            entity.HasKey(e => e.id);
+            entity.Property(e => e.id)
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd(); // auto increment
+            
+            entity.Property(e => e.name)
+                .HasColumnName("name")
+                .HasMaxLength(100)
+                .IsRequired();
+            
+            entity.Property(e => e.biography)
+                .HasColumnName("biography")
+                .HasMaxLength(5000);
+            
+            entity.Property(e => e.birth_date)
+                .HasColumnName("birth_date");
+            
+            entity.Property(e => e.photo_url)
+                .HasColumnName("photo_url")
+                .HasMaxLength(500);
+            
+            entity.Property(e => e.created_at)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("NOW()");
+            
+            entity.HasIndex(e => e.name)
+                .HasDatabaseName("index_people_name");
+        });
+
+        // configure the MoviePerson many-to-many table
+        modelBuilder.Entity<MoviePerson>(entity =>
+        {
+            entity.ToTable("movie_people");
+            
+            // Composite primary key
+            entity.HasKey(e => new { e.movie_id, e.person_id, e.role });
+            
+            entity.Property(e => e.role)
+                .HasColumnName("role")
+                .IsRequired();
+            
+            entity.Property(e => e.character_name)
+                .HasColumnName("character_name")
+                .HasMaxLength(100);
+            
+            entity.Property(e => e.billing_order)
+                .HasColumnName("billing_order");
+            
+            // Foreign key to Movie
+            entity.HasOne(e => e.Movie)
+                .WithMany()
+                .HasForeignKey(e => e.movie_id)
+                .OnDelete(DeleteBehavior.Cascade); // cascade deletion
+            
+            // Foreign key to Person
+            entity.HasOne(e => e.Person)
+                .WithMany()
+                .HasForeignKey(e => e.person_id)
+                .OnDelete(DeleteBehavior.Cascade); // cascade deletion
         });
     }
 }

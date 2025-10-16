@@ -19,7 +19,11 @@ public class MovieQueryParameters
     // Pagination
     [Range(1, int.MaxValue)]
     public int page { get; set; } = 1; // default to page 1
-    
+
     [Range(1, 100)]
     public int pageSize { get; set; } = 10; // default to 10 items per page
+    
+    // new: sorting
+    public MovieSortBy sortBy { get; set; } = MovieSortBy.CreatedDate;
+    public SortDirection sortDirection { get; set; } = SortDirection.Descending;
 }
