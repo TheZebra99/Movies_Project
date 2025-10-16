@@ -13,6 +13,7 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
     public DbSet<User> Users { get; set; } = null!; // Users table in the DB
     public DbSet<Movie> Movies { get; set; } = null!; // New Movies table in the DB
     public DbSet<Watchlist> Watchlists { get; set; } = null!; // New Watchlists table in the DB
+    public DbSet<Review> Reviews { get; set; } = null!; // new Reviews table in the DB
     protected override void OnModelCreating(ModelBuilder modelBuilder) //override the method from DbContext
     {
         base.OnModelCreating(modelBuilder);
@@ -111,7 +112,7 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
             entity.HasIndex(e => e.title)
                 .HasDatabaseName("index_movies_title");
         });
-        
+
         // configure the table for watchlists
         //Cascade Deletion:
         // If a user is deleted -> their watchlist entries are automatically removed
@@ -119,25 +120,77 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
         modelBuilder.Entity<Watchlist>(entity =>
         {
             entity.ToTable("watchlists");
-            
+
             // Composite primary key (user_id + movie_id together) = no repeating movies in the watchlist!
             entity.HasKey(e => new { e.user_id, e.movie_id });
-            
+
             entity.Property(e => e.added_at)
                 .HasColumnName("added_at")
                 .HasDefaultValueSql("NOW()");
+
+            // Foreign key to User
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.user_id)
+                .OnDelete(DeleteBehavior.Cascade); // if user is deleted, remove their watchlist entries
+
+            // Foreign key to Movie
+            entity.HasOne(e => e.Movie)
+                .WithMany()
+                .HasForeignKey(e => e.movie_id)
+                .OnDelete(DeleteBehavior.Cascade); // if movie is deleted, remove from all watchlists
+        });
+        
+        // configure the table for reviews
+        // cascade deletion
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.ToTable("reviews");
+            
+            entity.HasKey(e => e.id);
+            entity.Property(e => e.id)
+                .HasColumnName("id")
+                .ValueGeneratedOnAdd(); // auto increment index
+            
+            entity.Property(e => e.user_id)
+                .HasColumnName("user_id")
+                .IsRequired();
+            
+            entity.Property(e => e.movie_id)
+                .HasColumnName("movie_id")
+                .IsRequired();
+            
+            entity.Property(e => e.rating)
+                .HasColumnName("rating")
+                .IsRequired();
+            
+            entity.Property(e => e.review_text)
+                .HasColumnName("review_text")
+                .HasMaxLength(2000);
+            
+            entity.Property(e => e.created_at)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("NOW()");
+            
+            entity.Property(e => e.updated_at)
+                .HasColumnName("updated_at");
             
             // Foreign key to User
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.user_id)
-                .OnDelete(DeleteBehavior.Cascade); // if user deleted, remove their watchlist entries
+                .OnDelete(DeleteBehavior.Cascade); // if user is deleted, remove their reviews
                 
             // Foreign key to Movie
             entity.HasOne(e => e.Movie)
                 .WithMany()
                 .HasForeignKey(e => e.movie_id)
-                .OnDelete(DeleteBehavior.Cascade); // if movie deleted, remove from all watchlists
+                .OnDelete(DeleteBehavior.Cascade); // if movie is deleted, remove all reviews
+            
+            // Unique constraint: one review per user per movie
+            entity.HasIndex(e => new { e.user_id, e.movie_id })
+                .IsUnique()
+                .HasDatabaseName("index_reviews_user_movie");
         });
     }
 }

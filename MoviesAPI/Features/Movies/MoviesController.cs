@@ -17,12 +17,13 @@ public class MoviesController : ControllerBase
         _movieService = movieService;
     }
 
-    // GET /api/movies - Get all movies (PUBLIC - no authentication required)
+    // changed this to include pagination and filters
+    // GET /api/movies - Get all movies with optional filters and pagination (PUBLIC)
     [HttpGet]
-    public async Task<IActionResult> GetAllMovies()
+    public async Task<IActionResult> GetAllMovies([FromQuery] MovieQueryParameters parameters)
     {
-        var movies = await _movieService.GetAllMoviesAsync();
-        return Ok(movies);
+        var result = await _movieService.GetMoviesWithFiltersAsync(parameters);
+        return Ok(result);
     }
 
     // GET /api/movies/{id} - Get movie by ID (PUBLIC - no authentication required)
@@ -30,28 +31,30 @@ public class MoviesController : ControllerBase
     public async Task<IActionResult> GetMovieById(int id)
     {
         var movie = await _movieService.GetMovieByIdAsync(id);
-        
+
         if (movie == null)
             return NotFound(new { error = "Movie not found" });
 
         return Ok(movie);
     }
 
+    // new, updated method to include checking for duplicates
     // POST /api/movies - Create new movie (ADMIN ONLY)
     [HttpPost]
-    [Authorize(Roles = "Admin")] // only admins can create movies
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateMovie([FromBody] CreateMovieRequest request)
     {
-        // validation happens automatically via data annotations
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var movie = await _movieService.CreateMovieAsync(request);
+        var (success, error, movie) = await _movieService.CreateMovieAsync(request);
         
-        // return 201 Created with location header
+        if (!success)
+            return BadRequest(new { error });
+        
         return CreatedAtAction(
             nameof(GetMovieById), 
-            new { id = movie.id }, 
+            new { id = movie!.id }, 
             movie
         );
     }

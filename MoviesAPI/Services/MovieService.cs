@@ -10,9 +10,12 @@ public interface IMovieService
 {
     Task<IEnumerable<MovieResponse>> GetAllMoviesAsync();
     Task<MovieResponse?> GetMovieByIdAsync(int id);
-    Task<MovieResponse> CreateMovieAsync(CreateMovieRequest request);
+    // updated method in the interface to exclude duplicates (new return type)
+    Task<(bool Success, string? Error, MovieResponse? Movie)> CreateMovieAsync(CreateMovieRequest request);
     Task<MovieResponse?> UpdateMovieAsync(int id, UpdateMovieRequest request);
     Task<bool> DeleteMovieAsync(int id);
+    // new method to get paginated movies (with search filters)
+    Task<PaginatedMoviesResponse> GetMoviesWithFiltersAsync(MovieQueryParameters parameters);
 }
 
 public class MovieService : IMovieService
@@ -38,12 +41,20 @@ public class MovieService : IMovieService
         // if movie not found, return null
         if (movie == null)
             return null;
-        
+
         return MapToResponse(movie);
     }
 
-    public async Task<MovieResponse> CreateMovieAsync(CreateMovieRequest request)
+    // new, updated method to avoid creating duplicates (Uses MovieExistsAsync)
+    public async Task<(bool Success, string? Error, MovieResponse? Movie)> CreateMovieAsync(CreateMovieRequest request)
     {
+        // check if movie already exists (same title + release year)
+        var exists = await _movieRepository.MovieExistsAsync(request.title, request.release_date);
+        if (exists)
+        {
+            return (false, "A movie with this title and release year already exists", null);
+        }
+
         // create new movie entity
         var movie = new Movie(
             request.title,
@@ -58,8 +69,8 @@ public class MovieService : IMovieService
         // save to database
         var createdMovie = await _movieRepository.CreateAsync(movie);
         
-        // return as response
-        return MapToResponse(createdMovie);
+        // return success with the movie
+        return (true, null, MapToResponse(createdMovie));
     }
 
     public async Task<MovieResponse?> UpdateMovieAsync(int id, UpdateMovieRequest request)
@@ -106,6 +117,24 @@ public class MovieService : IMovieService
             runtime_minutes = movie.runtime_minutes,
             poster_url = movie.poster_url,
             created_at = movie.created_at
+        };
+    }
+
+    public async Task<PaginatedMoviesResponse> GetMoviesWithFiltersAsync(MovieQueryParameters parameters)
+    {
+        var (movies, totalCount) = await _movieRepository.GetMoviesWithFiltersAsync(parameters);
+        
+        var totalPages = (int)Math.Ceiling(totalCount / (double)parameters.pageSize);
+        
+        return new PaginatedMoviesResponse
+        {
+            movies = movies.Select(m => MapToResponse(m)),
+            page = parameters.page,
+            pageSize = parameters.pageSize,
+            totalCount = totalCount,
+            totalPages = totalPages,
+            hasPreviousPage = parameters.page > 1,
+            hasNextPage = parameters.page < totalPages
         };
     }
 }
