@@ -13,6 +13,8 @@ public interface IWatchlistRepository
     Task<Watchlist> AddToWatchlistAsync(Watchlist watchlist);
     Task<bool> RemoveFromWatchlistAsync(int userId, int movieId);
     Task<bool> IsInWatchlistAsync(int userId, int movieId);
+    // new method for searching inside the watchlist
+    Task<IEnumerable<Watchlist>> SearchUserWatchlistAsync(int userId, string searchTerm);
 }
 
 public class WatchlistRepository : IWatchlistRepository
@@ -64,5 +66,18 @@ public class WatchlistRepository : IWatchlistRepository
     {
         return await _context.Watchlists
             .AnyAsync(w => w.user_id == userId && w.movie_id == movieId);
+    }
+
+    // new method to search inside the watchlist
+    public async Task<IEnumerable<Watchlist>> SearchUserWatchlistAsync(int userId, string searchTerm)
+    {
+        var normalizedSearch = searchTerm.Trim().ToLower();
+        
+        return await _context.Watchlists
+            .Include(w => w.Movie)
+            .Where(w => w.user_id == userId && 
+                        w.Movie.title.ToLower().Contains(normalizedSearch))
+            .OrderByDescending(w => w.added_at)
+            .ToListAsync();
     }
 }

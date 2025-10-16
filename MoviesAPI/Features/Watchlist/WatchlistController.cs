@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoviesAPI.Services;
 using MoviesAPI.Features.Watchlist.Requests;
+using MoviesAPI.Features.Watchlist.Responses;
 
 namespace MoviesAPI.Features.Watchlist;
 
@@ -20,13 +21,23 @@ public class WatchlistController : ControllerBase
     }
 
     // GET /api/watchlist - Get my watchlist
+    // new, updated method to include searching inside a watchlist
     [HttpGet]
-    public async Task<IActionResult> GetMyWatchlist()
+    public async Task<IActionResult> GetMyWatchlist([FromQuery] string? search)
     {
-        // get the current user's ID from the JWT token
         var userId = GetCurrentUserId();
         
-        var watchlist = await _watchlistService.GetUserWatchlistAsync(userId);
+        IEnumerable<WatchlistResponse> watchlist;
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            watchlist = await _watchlistService.SearchUserWatchlistAsync(userId, search);
+        }
+        else
+        {
+            watchlist = await _watchlistService.GetUserWatchlistAsync(userId);
+        }
+        
         return Ok(watchlist);
     }
 
@@ -67,9 +78,9 @@ public class WatchlistController : ControllerBase
     private int GetCurrentUserId()
     {
         // the "sub" claim contains the user ID (we set this in AuthService)
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) 
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
                           ?? User.FindFirst("sub");
-        
+
         if (userIdClaim == null)
             throw new UnauthorizedAccessException("User ID not found in token");
 

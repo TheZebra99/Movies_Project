@@ -11,6 +11,9 @@ public interface IWatchlistService
     Task<IEnumerable<WatchlistResponse>> GetUserWatchlistAsync(int userId);
     Task<(bool Success, string? Error)> AddToWatchlistAsync(int userId, AddToWatchlistRequest request);
     Task<(bool Success, string? Error)> RemoveFromWatchlistAsync(int userId, int movieId);
+
+    // new method to search inside the watchlist
+    Task<IEnumerable<WatchlistResponse>> SearchUserWatchlistAsync(int userId, string searchTerm);
 }
 
 public class WatchlistService : IWatchlistService
@@ -81,5 +84,17 @@ public class WatchlistService : IWatchlistService
             poster_url = movie.poster_url,
             created_at = movie.created_at
         };
+    }
+
+    // new method to search inside the watchlist
+    public async Task<IEnumerable<WatchlistResponse>> SearchUserWatchlistAsync(int userId, string searchTerm)
+    {
+        var watchlist = await _watchlistRepository.SearchUserWatchlistAsync(userId, searchTerm);
+        
+        return watchlist.Select(w => new WatchlistResponse
+        {
+            movie = MapMovieToResponse(w.Movie),
+            added_at = w.added_at
+        });
     }
 }
