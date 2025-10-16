@@ -34,6 +34,17 @@ builder.Services.AddScoped<IPersonService, PersonService>();
 builder.Services.AddScoped<IMoviePersonRepository, MoviePersonRepository>();
 builder.Services.AddScoped<IMoviePersonService, MoviePersonService>();
 
+// Add Cors (to make backend work with angular)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 // Add JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
@@ -116,6 +127,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// connect backend with angular
+app.UseCors("AllowAngular");
 
 app.UseAuthentication();
 app.UseAuthorization();
