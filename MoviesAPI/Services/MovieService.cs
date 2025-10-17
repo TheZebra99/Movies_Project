@@ -38,6 +38,7 @@ public class MovieService : IMovieService
     }
 
     // updated method to include ratings and reviews
+    // new new method to include revenue, screenshots and trailer
     public async Task<MovieResponse?> GetMovieByIdAsync(int id)
     {
         var movie = await _movieRepository.GetByIdAsync(id);
@@ -60,11 +61,15 @@ public class MovieService : IMovieService
             poster_url = movie.poster_url,
             created_at = movie.created_at,
             average_rating = averageRating,
-            review_count = reviewCount
+            review_count = reviewCount,
+            revenue = movie.revenue,          // new
+            trailer_url = movie.trailer_url,  // new
+            screenshots = movie.screenshots   // new
         };
     }
 
     // new, updated method to avoid creating duplicates (Uses MovieExistsAsync)
+    // new new CreateMovieAsync with the new parameters for Movie constructor
     public async Task<(bool Success, string? Error, MovieResponse? Movie)> CreateMovieAsync(CreateMovieRequest request)
     {
         // check if movie already exists (same title + release year)
@@ -82,7 +87,10 @@ public class MovieService : IMovieService
             request.director,
             request.genre,
             request.runtime_minutes,
-            request.poster_url
+            request.poster_url,
+            request.revenue,        // new
+            request.trailer_url,    // new
+            request.screenshots     // new
         );
 
         // save to database
@@ -92,6 +100,7 @@ public class MovieService : IMovieService
         return (true, null, MapToResponse(createdMovie));
     }
 
+    // new UpdateMovieAsync with the new parameters for UpdateDetails
     public async Task<MovieResponse?> UpdateMovieAsync(int id, UpdateMovieRequest request)
     {
         // check if movie exists
@@ -107,7 +116,10 @@ public class MovieService : IMovieService
             request.director,
             request.genre,
             request.runtime_minutes,
-            request.poster_url
+            request.poster_url,
+            request.revenue,        // new
+            request.trailer_url,    // new
+            request.screenshots     // new
         );
 
         // save changes to database
@@ -122,7 +134,7 @@ public class MovieService : IMovieService
         return await _movieRepository.DeleteAsync(id);
     }
 
-    // helper method to map Movie entity to MovieResponse
+    // updated helper method to map Movie entity to MovieResponse
     private MovieResponse MapToResponse(Movie movie)
     {
         return new MovieResponse
@@ -135,11 +147,14 @@ public class MovieService : IMovieService
             genre = movie.genre,
             runtime_minutes = movie.runtime_minutes,
             poster_url = movie.poster_url,
-            created_at = movie.created_at
+            created_at = movie.created_at,
+            revenue = movie.revenue,          // new
+            trailer_url = movie.trailer_url,  // new
+            screenshots = movie.screenshots   // new
         };
     }
 
-    // new, updated method to include reviews and ratings
+    // new new updated method to include reviews and ratings (revenue, screenshots and trailer)
     public async Task<PaginatedMoviesResponse> GetMoviesWithFiltersAsync(MovieQueryParameters parameters)
     {
         var (moviesWithRatings, totalCount) = await _movieRepository.GetMoviesWithFiltersAndRatingsAsync(parameters);
@@ -160,7 +175,10 @@ public class MovieService : IMovieService
                 poster_url = m.Movie.poster_url,
                 created_at = m.Movie.created_at,
                 average_rating = m.AverageRating,
-                review_count = m.ReviewCount
+                review_count = m.ReviewCount,
+                revenue = m.Movie.revenue,          // new
+                trailer_url = m.Movie.trailer_url,  // new
+                screenshots = m.Movie.screenshots   // new
             }),
             page = parameters.page,
             pageSize = parameters.pageSize,

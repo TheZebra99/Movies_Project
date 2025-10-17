@@ -4,13 +4,16 @@ export interface Movie {
   id: number;
   title: string;
   description: string;
-  release_date: string; // date string from API
+  release_date: string; // ISO date string
   director: string;
   genre: string;
   runtime_minutes: number;
   poster_url: string;
   average_rating?: number;
   review_count: number;
+  revenue?: number;
+  trailer_url?: string;
+  screenshots?: string[];
 }
 
 // MovieDetail extends Movie, it has everything Movie has PLUS cast/crew

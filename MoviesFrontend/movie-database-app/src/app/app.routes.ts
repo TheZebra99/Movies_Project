@@ -14,6 +14,10 @@ export const routes: Routes = [
     loadComponent: () => import('./features/movies/pages/movie-list.component').then(m => m.MovieListComponent)
   },
   {
+    path: 'movies/:id',  // Movie detail page with the movie :id
+    loadComponent: () => import('./features/movies/pages/movie-detail.component').then(m => m.MovieDetailComponent)
+  },
+  {
     path: 'login',  // new new page implemented
     loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
   },

@@ -12,9 +12,14 @@ public class Movie
     public string? poster_url { get; private set; }
     public DateTime created_at { get; private set; } = DateTime.UtcNow;
     
+    // new fields for frontend
+    public decimal? revenue { get; private set; }
+    public string? trailer_url { get; private set; }
+    public List<string>? screenshots { get; private set; }
+   
     // EF Core needs an empty constructor...
     protected Movie() { }
-    
+   
     // Constructor
     public Movie(
         string title,
@@ -23,26 +28,34 @@ public class Movie
         string? director = null,
         string? genre = null,
         int? runtimeMinutes = null,
-        string? posterUrl = null
+        string? posterUrl = null,
+        decimal? revenue = null,
+        string? trailerUrl = null,
+        List<string>? screenshots = null
     )
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title is required", nameof(title));
-            
+           
         this.title = title.Trim();
-        
+       
         // Convert to UTC if not already
-        this.release_date = releaseDate.Kind == DateTimeKind.Utc 
-            ? releaseDate 
+        this.release_date = releaseDate.Kind == DateTimeKind.Utc
+            ? releaseDate
             : DateTime.SpecifyKind(releaseDate, DateTimeKind.Utc);
-        
+       
         this.description = description?.Trim();
         this.director = director?.Trim();
         this.genre = genre?.Trim();
         this.runtime_minutes = runtimeMinutes;
         this.poster_url = posterUrl?.Trim();
+        
+        // new fields for frontend
+        this.revenue = revenue;
+        this.trailer_url = trailerUrl?.Trim();
+        this.screenshots = screenshots;
     }
-    
+   
     // Method to update movie details
     public void UpdateDetails(
         string? title = null,
@@ -51,27 +64,46 @@ public class Movie
         string? director = null,
         string? genre = null,
         int? runtimeMinutes = null,
-        string? posterUrl = null
+        string? posterUrl = null,
+        decimal? revenue = null,
+        string? trailerUrl = null,
+        List<string>? screenshots = null
     )
     {
         if (!string.IsNullOrWhiteSpace(title))
             this.title = title.Trim();
+        
         if (description != null)
             this.description = description.Trim();
+        
         if (releaseDate.HasValue)
         {
             // Convert to UTC if not already
-            this.release_date = releaseDate.Value.Kind == DateTimeKind.Utc 
-                ? releaseDate.Value 
+            this.release_date = releaseDate.Value.Kind == DateTimeKind.Utc
+                ? releaseDate.Value
                 : DateTime.SpecifyKind(releaseDate.Value, DateTimeKind.Utc);
         }
+        
         if (director != null)
             this.director = director.Trim();
+        
         if (genre != null)
             this.genre = genre.Trim();
+        
         if (runtimeMinutes.HasValue)
             this.runtime_minutes = runtimeMinutes;
+        
         if (posterUrl != null)
             this.poster_url = posterUrl.Trim();
+        
+        // new fields for frontend
+        if (revenue.HasValue)
+            this.revenue = revenue;
+        
+        if (trailerUrl != null)
+            this.trailer_url = trailerUrl.Trim();
+        
+        if (screenshots != null)
+            this.screenshots = screenshots;
     }
 }

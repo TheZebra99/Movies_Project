@@ -24,4 +24,14 @@ public class UpdateMovieRequest
     [MaxLength(500)]
     [Url]
     public string? poster_url { get; set; }
+    
+    // new fields
+    [Range(0, 99999999999999.99)]
+    public decimal? revenue { get; set; }
+    
+    [MaxLength(500)]
+    [Url]
+    public string? trailer_url { get; set; }
+    
+    public List<string>? screenshots { get; set; }
 }

@@ -117,6 +117,23 @@ public class ApplicationDbContext : DbContext // inherit DbContext from EntityFr
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("NOW()");
 
+            // new fields for frontend
+            entity.Property(e => e.revenue)
+                .HasColumnName("revenue")
+                .HasColumnType("decimal(15,2)");  // Up to billions with 2 decimals
+            
+            entity.Property(e => e.trailer_url)
+                .HasColumnName("trailer_url")
+                .HasMaxLength(500);
+            
+            entity.Property(e => e.screenshots)
+                .HasColumnName("screenshots")
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => v == null ? null : System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null)
+                );
+
             entity.HasIndex(e => e.title)
                 .HasDatabaseName("index_movies_title");
         });
