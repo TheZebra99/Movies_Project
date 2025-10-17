@@ -10,11 +10,27 @@ public interface IReviewService
     Task<IEnumerable<ReviewResponse>> GetMovieReviewsAsync(int movieId);
     Task<IEnumerable<ReviewResponse>> GetUserReviewsAsync(int userId);
     Task<ReviewResponse?> GetReviewByIdAsync(int id);
-    Task<(bool Success, string? Error, ReviewResponse? Review)> CreateReviewAsync(int userId, CreateReviewRequest request);
-    Task<(bool Success, string? Error, ReviewResponse? Review)> UpdateReviewAsync(int userId, int reviewId, UpdateReviewRequest request);
+    Task<(bool Success, string? Error, ReviewResponse? Review)> CreateReviewAsync(
+        int userId,
+        CreateReviewRequest request
+    );
+    Task<(bool Success, string? Error, ReviewResponse? Review)> UpdateReviewAsync(
+        int userId,
+        int reviewId,
+        UpdateReviewRequest request
+    );
     // changed the method to include admin being able to delete users reviews
-    Task<(bool Success, string? Error)> DeleteReviewAsync(int userId, int reviewId, bool isAdmin = false);
+    Task<(bool Success, string? Error)> DeleteReviewAsync(
+        int userId,
+        int reviewId,
+        bool isAdmin = false
+    );
     Task<MovieRatingStats> GetMovieRatingStatsAsync(int movieId);
+    // new method for paginated reviews
+    Task<PaginatedReviewsResponse> GetMovieReviewsPaginatedAsync(
+        int movieId,
+        ReviewQueryParameters parameters
+    );
 }
 
 public class ReviewService : IReviewService
@@ -47,7 +63,10 @@ public class ReviewService : IReviewService
         return review == null ? null : MapToResponse(review);
     }
 
-    public async Task<(bool Success, string? Error, ReviewResponse? Review)> CreateReviewAsync(int userId, CreateReviewRequest request)
+    public async Task<(bool Success, string? Error, ReviewResponse? Review)> CreateReviewAsync(
+        int userId,
+        CreateReviewRequest request
+    )
     {
         // check if movie exists
         var movieExists = await _movieRepository.ExistsAsync(request.movie_id);
@@ -69,7 +88,11 @@ public class ReviewService : IReviewService
         return (true, null, MapToResponse(fullReview!));
     }
 
-    public async Task<(bool Success, string? Error, ReviewResponse? Review)> UpdateReviewAsync(int userId, int reviewId, UpdateReviewRequest request)
+    public async Task<(bool Success, string? Error, ReviewResponse? Review)> UpdateReviewAsync(
+        int userId,
+        int reviewId,
+        UpdateReviewRequest request
+    )
     {
         // get the review
         var review = await _reviewRepository.GetByIdAsync(reviewId);
@@ -88,7 +111,11 @@ public class ReviewService : IReviewService
     }
 
     // changed the method to include admins being able to delete users reviews
-    public async Task<(bool Success, string? Error)> DeleteReviewAsync(int userId, int reviewId, bool isAdmin = false)
+    public async Task<(bool Success, string? Error)> DeleteReviewAsync(
+        int userId,
+        int reviewId,
+        bool isAdmin = false
+    )
     {
         // get the review
         var review = await _reviewRepository.GetByIdAsync(reviewId);
@@ -133,6 +160,30 @@ public class ReviewService : IReviewService
             review_text = review.review_text,
             created_at = review.created_at,
             updated_at = review.updated_at
+        };
+    }
+
+    public async Task<PaginatedReviewsResponse> GetMovieReviewsPaginatedAsync(
+        int movieId,
+        ReviewQueryParameters parameters
+    )
+    {
+        var (reviews, totalCount) = await _reviewRepository.GetMovieReviewsPaginatedAsync(
+            movieId, 
+            parameters.page, 
+            parameters.pageSize);
+
+        var totalPages = (int)Math.Ceiling(totalCount / (double)parameters.pageSize);
+
+        return new PaginatedReviewsResponse
+        {
+            reviews = reviews.Select(r => MapToResponse(r)),
+            page = parameters.page,
+            pageSize = parameters.pageSize,
+            totalCount = totalCount,
+            totalPages = totalPages,
+            hasPreviousPage = parameters.page > 1,
+            hasNextPage = parameters.page < totalPages
         };
     }
 }

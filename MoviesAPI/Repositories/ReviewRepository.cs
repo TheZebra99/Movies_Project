@@ -18,6 +18,13 @@ public interface IReviewRepository
     Task<bool> UserHasReviewedMovieAsync(int userId, int movieId);
     Task<double?> GetAverageRatingForMovieAsync(int movieId);
     Task<int> GetReviewCountForMovieAsync(int movieId);
+
+    // new method for the paginated reviews in the frontend
+    Task<(IEnumerable<Review> Reviews, int TotalCount)> GetMovieReviewsPaginatedAsync(
+        int movieId, 
+        int page,
+        int pageSize
+    );
 }
 
 public class ReviewRepository : IReviewRepository
@@ -115,5 +122,28 @@ public class ReviewRepository : IReviewRepository
         return await _context.Reviews
             .Where(r => r.movie_id == movieId)
             .CountAsync();
+    }
+
+    // new method for paginated reviews
+    public async Task<(IEnumerable<Review> Reviews, int TotalCount)> GetMovieReviewsPaginatedAsync(
+        int movieId, 
+        int page,
+        int pageSize
+    )
+    {
+        var query = _context.Reviews
+            .Include(r => r.User)
+            .Include(r => r.Movie)
+            .Where(r => r.movie_id == movieId)
+            .OrderByDescending(r => r.created_at);
+
+        var totalCount = await query.CountAsync();
+
+        var reviews = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (reviews, totalCount);
     }
 }

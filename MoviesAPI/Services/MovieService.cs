@@ -2,6 +2,7 @@ using MoviesAPI.Models;
 using MoviesAPI.Repositories;
 using MoviesAPI.Features.Movies.Requests;
 using MoviesAPI.Features.Movies.Responses;
+using MoviesAPI.Features.People.Responses;
 
 namespace MoviesAPI.Services;
 
@@ -22,12 +23,19 @@ public class MovieService : IMovieService
 {
     private readonly IMovieRepository _movieRepository; // take the interface from MovieRepository.cs
     private readonly IReviewRepository _reviewRepository; // new, take the interface from ReviewRepository.cs
-
+    private readonly IMoviePersonRepository _moviePersonRepository;  // new
+    
+    
     // (updated) constructor for MovieService
-    public MovieService(IMovieRepository movieRepository, IReviewRepository reviewRepository)
+    public MovieService(
+        IMovieRepository movieRepository,
+        IReviewRepository reviewRepository,
+        IMoviePersonRepository moviePersonRepository // new
+    )
     {
         _movieRepository = movieRepository;
         _reviewRepository = reviewRepository;
+        _moviePersonRepository = moviePersonRepository; // new
     }
 
     public async Task<IEnumerable<MovieResponse>> GetAllMoviesAsync()
@@ -39,15 +47,48 @@ public class MovieService : IMovieService
 
     // updated method to include ratings and reviews
     // new new method to include revenue, screenshots and trailer
+    // UPDATED GetMovieByIdAsync, now includes cast and crew
     public async Task<MovieResponse?> GetMovieByIdAsync(int id)
     {
         var movie = await _movieRepository.GetByIdAsync(id);
         if (movie == null)
             return null;
         
-        // get rating stats
+        // Get rating stats
         var averageRating = await _reviewRepository.GetAverageRatingForMovieAsync(id);
         var reviewCount = await _reviewRepository.GetReviewCountForMovieAsync(id);
+        
+        // Get cast and crew
+        var castAndCrew = await _moviePersonRepository.GetMovieCastAndCrewAsync(id);
+        
+        // Separate cast and crew
+        var cast = castAndCrew
+            .Where(mp => mp.role == PersonRole.Actor)
+            .Select(mp => new MoviePersonResponse
+            {
+                id = mp.movie_id,  // Note: This might need adjustment based on your needs
+                person_id = mp.person_id,
+                person_name = mp.Person.name,
+                person_photo_url = mp.Person.photo_url,
+                role = mp.role,
+                character_name = mp.character_name,
+                billing_order = mp.billing_order
+            })
+            .ToList();
+        
+        var crew = castAndCrew
+            .Where(mp => mp.role != PersonRole.Actor)
+            .Select(mp => new MoviePersonResponse
+            {
+                id = mp.movie_id,
+                person_id = mp.person_id,
+                person_name = mp.Person.name,
+                person_photo_url = mp.Person.photo_url,
+                role = mp.role,
+                character_name = mp.character_name,
+                billing_order = mp.billing_order
+            })
+            .ToList();
         
         return new MovieResponse
         {
@@ -62,9 +103,11 @@ public class MovieService : IMovieService
             created_at = movie.created_at,
             average_rating = averageRating,
             review_count = reviewCount,
-            revenue = movie.revenue,          // new
-            trailer_url = movie.trailer_url,  // new
-            screenshots = movie.screenshots   // new
+            revenue = movie.revenue,
+            trailer_url = movie.trailer_url,
+            screenshots = movie.screenshots,
+            cast = cast,      // NEW
+            crew = crew       // NEW
         };
     }
 

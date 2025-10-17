@@ -92,7 +92,10 @@ public class ReviewsController : ControllerBase
     // PUT /api/reviews/{id} - Update own review (AUTHENTICATED)
     [HttpPut("{id}")]
     [Authorize] // must be logged in
-    public async Task<IActionResult> UpdateReview(int id, [FromBody] UpdateReviewRequest request)
+    public async Task<IActionResult> UpdateReview(
+        int id,
+        [FromBody] UpdateReviewRequest request
+    )
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -144,12 +147,23 @@ public class ReviewsController : ControllerBase
     private int GetCurrentUserId()
     {
         // the "sub" claim contains the user ID (we set this in AuthService)
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) 
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
                           ?? User.FindFirst("sub");
-        
+
         if (userIdClaim == null)
             throw new UnauthorizedAccessException("User ID not found in token");
 
         return int.Parse(userIdClaim.Value);
+    }
+    
+    // GET /api/reviews/movie/{movieId}/paginated - new endpoint to get paginated reviews for a movie (PUBLIC)
+    [HttpGet("movie/{movieId}/paginated")]
+    public async Task<IActionResult> GetMovieReviewsPaginated(
+        int movieId,
+        [FromQuery] ReviewQueryParameters parameters
+    )
+    {
+        var paginatedReviews = await _reviewService.GetMovieReviewsPaginatedAsync(movieId, parameters);
+        return Ok(paginatedReviews);
     }
 }

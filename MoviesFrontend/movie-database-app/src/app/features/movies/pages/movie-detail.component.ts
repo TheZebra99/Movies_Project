@@ -4,11 +4,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MovieService } from '../services/movie.service';
 import { MoviePerson, PersonRole } from '../../../shared/models/movie.model';
+import { MovieReviewsSectionComponent } from '../components/movie-reviews-section.component';
 
 @Component({
   selector: 'app-movie-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, MovieReviewsSectionComponent],
   template: `
     <div class="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 py-8 px-4">
       @if (movieService.loading()) {
@@ -218,6 +219,12 @@ import { MoviePerson, PersonRole } from '../../../shared/models/movie.model';
                 </div>
               </div>
             }
+            
+            <!-- Reviews Section -->
+            @if (movie()) {
+              <app-movie-reviews-section [movieId]="movie()!.id" />
+            }
+
           </div>
 
           <!-- RIGHT SIDE: Info Table -->

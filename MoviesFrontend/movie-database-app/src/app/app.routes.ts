@@ -18,6 +18,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/movies/pages/movie-detail.component').then(m => m.MovieDetailComponent)
   },
   {
+    path: 'people/:id', // new personal pages for actors and directors
+    loadComponent: () => import('./features/people/person-detail.component')
+      .then(m => m.PersonDetailComponent)
+  },
+  {
     path: 'login',  // new new page implemented
     loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
   },
