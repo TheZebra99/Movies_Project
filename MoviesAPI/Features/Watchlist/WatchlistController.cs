@@ -20,6 +20,16 @@ public class WatchlistController : ControllerBase
         _watchlistService = watchlistService;
     }
 
+
+    // GET /api/watchlist/user/{userId} - new get any user's watchlist endpoint (PUBLIC)
+    [HttpGet("user/{userId}")]
+    [AllowAnonymous] // Override auth requirement
+    public async Task<IActionResult> GetUserWatchlist(int userId)
+    {
+        var watchlist = await _watchlistService.GetUserWatchlistAsync(userId);
+        return Ok(watchlist);
+    }
+
     // GET /api/watchlist - Get my watchlist
     // new, updated method to include searching inside a watchlist
     [HttpGet]

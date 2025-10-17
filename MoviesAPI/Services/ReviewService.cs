@@ -45,16 +45,20 @@ public class ReviewService : IReviewService
         _movieRepository = movieRepository;
     }
 
+    // updated method to include null guarding
     public async Task<IEnumerable<ReviewResponse>> GetMovieReviewsAsync(int movieId)
     {
-        var reviews = await _reviewRepository.GetMovieReviewsAsync(movieId);
-        return reviews.Select(r => MapToResponse(r));
+        var reviews = await _reviewRepository.GetMovieReviewsAsync(movieId)
+                    ?? Enumerable.Empty<Review>();
+        return reviews.Select(MapToResponse);
     }
 
+    // updated method to include null guarding
     public async Task<IEnumerable<ReviewResponse>> GetUserReviewsAsync(int userId)
     {
-        var reviews = await _reviewRepository.GetUserReviewsAsync(userId);
-        return reviews.Select(r => MapToResponse(r));
+        var reviews = await _reviewRepository.GetUserReviewsAsync(userId)
+                    ?? Enumerable.Empty<Review>();
+        return reviews.Select(MapToResponse);
     }
 
     public async Task<ReviewResponse?> GetReviewByIdAsync(int id)
@@ -144,22 +148,31 @@ public class ReviewService : IReviewService
         };
     }
 
-    // helper method to map Review entity to ReviewResponse DTO
+    // new, updated helper method to map Review entity to ReviewResponse DTO
     private ReviewResponse MapToResponse(Review review)
     {
+        if (review is null) throw new ArgumentNullException(nameof(review));
+
+        // fallbacks so serialization never throws on nulls
+        var userName   = review.User?.username ?? "Unknown";
+        var display    = review.User?.display_name ?? userName;
+        var profilePic = review.User?.profile_pic_url ?? string.Empty;
+        var movieTitle = review.Movie?.title ?? "(deleted movie)";
+        var text       = review.review_text ?? string.Empty;
+
         return new ReviewResponse
         {
-            id = review.id,
-            user_id = review.user_id,
-            username = review.User.username,
-            user_display_name = review.User.display_name,
-            user_profile_pic_url = review.User.profile_pic_url, // new field to include the profile pic
-            movie_id = review.movie_id,
-            movie_title = review.Movie.title,
-            rating = review.rating,
-            review_text = review.review_text,
-            created_at = review.created_at,
-            updated_at = review.updated_at
+            id                  = review.id,
+            user_id             = review.user_id,
+            username            = userName,
+            user_display_name   = display,
+            user_profile_pic_url= profilePic,
+            movie_id            = review.movie_id,
+            movie_title         = movieTitle,
+            rating              = review.rating,
+            review_text         = text,
+            created_at          = review.created_at,
+            updated_at          = review.updated_at
         };
     }
 

@@ -20,3 +20,8 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #ea580c;  /* Darker orange on hover */
 }
+
+/* new Global page background + default text color */
+html, body {
+  @apply bg-white text-gray-900;
+}

@@ -5,6 +5,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MovieService } from '../services/movie.service';
 import { MoviePerson, PersonRole } from '../../../shared/models/movie.model';
 import { MovieReviewsSectionComponent } from '../components/movie-reviews-section.component';
+import { ApiService } from '../../../core/services/api.service';
 
 @Component({
   selector: 'app-movie-detail',
@@ -34,8 +35,16 @@ import { MovieReviewsSectionComponent } from '../components/movie-reviews-sectio
             
             <!-- Movie Title -->
             <div>
-              <h1 class="text-5xl font-bold text-gray-900 mb-2">
+              <h1 class="text-5xl font-bold text-gray-900 mb-2 flex items-center gap-3 flex-wrap">
                 {{ movie()!.title }}
+
+                <button
+                  class="ml-1 px-4 py-2 rounded-xl bg-amber-500 text-white hover:bg-amber-600 shadow disabled:opacity-60"
+                  [disabled]="addingWl() || inWatchlist()"
+                  (click)="addToWatchlist($event)">
+                  <ng-container *ngIf="inWatchlist(); else addTpl">✓ In Watchlist</ng-container>
+                  <ng-template #addTpl>Add to Watchlist📌</ng-template>
+                </button>
               </h1>
               <div class="flex items-center gap-4 text-gray-600">
                 <span class="flex items-center gap-1">
@@ -318,6 +327,33 @@ export class MovieDetailComponent implements OnInit {
   protected movieService = inject(MovieService);
   private sanitizer = inject(DomSanitizer);
 
+  //new
+  protected api = inject(ApiService);
+  protected movieId = signal<number>(0);
+  protected inWatchlist = signal(false);
+  protected addingWl = signal(false);
+
+  private precheckWatchlist() {
+    this.api.get<{ movie: { id: number } }[]>('/watchlist').subscribe({
+      next: items => this.inWatchlist.set(
+        items.some(w => w.movie?.id === this.movieId())
+      ),
+      error: () => this.inWatchlist.set(false)
+    });
+  }
+
+  protected addToWatchlist(e?: Event) {
+    e?.preventDefault();
+    if (this.addingWl() || this.inWatchlist()) return;
+
+    this.addingWl.set(true);
+    this.api.post('/watchlist', { movie_id: this.movieId() }).subscribe({
+      next: () => this.inWatchlist.set(true),
+      error: () => alert('Failed to add to watchlist'),
+      complete: () => this.addingWl.set(false)
+    });
+  }
+
   // Computed signals from the service
   protected movie = computed(() => this.movieService.currentMovie());
 
@@ -363,6 +399,8 @@ export class MovieDetailComponent implements OnInit {
     this.route.params.subscribe(params => {
       const id = +params['id'];
       this.movieService.loadMovieById(id);
+      this.movieId.set(id); // new
+      this.precheckWatchlist();  // new
       // Reset carousel positions when loading new movie
       this.currentMediaIndex.set(0);
       this.currentCastIndex.set(0);

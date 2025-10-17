@@ -3,8 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MovieService } from '../services/movie.service';
+import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { MovieFilters } from '../../../shared/models/movie.model';
+
+// just for typescript...
+type WatchlistItem = { movie: { id: number }, added_at: string };
 
 @Component({
   selector: 'app-movie-list',
@@ -170,13 +174,14 @@ import { MovieFilters } from '../../../shared/models/movie.model';
                   <p class="text-gray-700 text-sm line-clamp-2">{{ movie.description }}</p>
                 </div>
 
-                <!-- Add to Watchlist Button -->
+                <!-- new Add to Watchlist Button -->
                 <div class="w-48 flex items-center justify-center p-4 border-l border-gray-200">
                   <button
                     (click)="addToWatchlist(movie.id, $event)"
-                    class="px-6 py-3 bg-bright-orange-500 text-white rounded-lg font-medium hover:bg-bright-orange-600 transition-colors shadow-md hover:shadow-lg flex items-center space-x-2">
+                    [disabled]="savingId() === movie.id || isInWatchlist(movie.id)"
+                    class="px-6 py-3 bg-bright-orange-500 text-white rounded-lg transition-colors shadow-md hover:shadow-lg flex items-center space-x-2 disabled:opacity-60">
                     <span class="text-xl">📌</span>
-                    <span>Add to Watchlist</span>
+                    <span>{{ isInWatchlist(movie.id) ? 'Added' : 'Add to Watchlist' }}</span>
                   </button>
                 </div>
               </div>
@@ -229,10 +234,16 @@ import { MovieFilters } from '../../../shared/models/movie.model';
     }
   `]
 })
+// new movielistcomponent
 export class MovieListComponent implements OnInit {
   movieService = inject(MovieService);
   authService = inject(AuthService);
   private router = inject(Router);
+  private api = inject(ApiService); // new
+
+  // new local UI state for watchlist button
+  private addedToWatchlist = new Set<number>();
+  savingId = signal<number | null>(null);
 
   // Filter state
   searchTerm = '';
@@ -248,6 +259,22 @@ export class MovieListComponent implements OnInit {
 
   ngOnInit() {
     this.loadMovies();
+    this.loadExistingWatchlist();   // new
+  }
+
+  // new method for dynamic "already in watchlist" button
+  private loadExistingWatchlist() {
+    this.api.get<WatchlistItem[]>('/watchlist').subscribe({
+      next: items => {
+        // replace local set with the server IDs
+        this.addedToWatchlist = new Set(
+          (items ?? [])
+            .map(w => w.movie?.id)
+            .filter((id): id is number => typeof id === 'number')
+        );
+      },
+      error: () => { /* ignore – button will still work on click */ }
+    });
   }
 
   onSearchChange() {
@@ -302,18 +329,32 @@ export class MovieListComponent implements OnInit {
     this.router.navigate(['/movies', id]);
   }
 
+  // newly updated addToWatchlist method
   addToWatchlist(movieId: number, event: Event) {
-    event.stopPropagation(); // Prevent navigating to movie detail
+    event.stopPropagation(); // don’t navigate to details
 
     if (!this.authService.isAuthenticated()) {
-      // Not logged in - redirect to login
-      this.router.navigate(['/login'], { 
-        queryParams: { returnUrl: '/browse' } 
-      });
-    } else {
-      // TODO: Call watchlist service
-      console.log('Add movie to watchlist:', movieId);
-      alert('Watchlist feature coming soon!');
+      this.router.navigate(['/login'], { queryParams: { returnUrl: '/browse' } });
+      return;
     }
+
+    if (this.addedToWatchlist.has(movieId) || this.savingId()) return;
+
+    this.savingId.set(movieId);
+    this.api.post('/watchlist', { movie_id: movieId }).subscribe({
+      next: () => {
+        this.addedToWatchlist.add(movieId); // optimistic “Added”
+      },
+      error: (err) => {
+        console.error('Failed to add to watchlist', err);
+        alert('Failed to add to watchlist');
+      },
+      complete: () => this.savingId.set(null)
+    });
+  }
+
+  // new helper method to retrieve a private field
+  isInWatchlist(id: number): boolean {
+    return this.addedToWatchlist.has(id);
   }
 }

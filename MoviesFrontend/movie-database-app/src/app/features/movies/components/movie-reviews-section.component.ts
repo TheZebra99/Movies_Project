@@ -1,7 +1,8 @@
 import { Component, Input, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
+import { RouterLink, Router } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 
 interface Review {
   id: number;
@@ -41,6 +42,36 @@ interface PaginatedReviews {
           }
         </h2>
       </div>
+
+      <!-- Review form -->
+      @if (auth.isAuthenticated()) {
+        <div class="rounded-xl border p-4 bg-white/70 mb-6">
+          <div class="flex items-center gap-3">
+            <label class="font-medium">Your rating</label>
+            <input
+              type="range" min="1" max="10" step="1" class="w-48"
+              [value]="newRating()"
+              (input)="onRatingInput($event)">
+            <span class="tabular-nums w-6 text-center">{{ newRating() }}</span>
+          </div>
+            <textarea
+              rows="3" class="w-full rounded-xl border p-3 mt-3"
+              placeholder="Write your thoughts…"
+              [value]="newText()"
+              (input)="onTextInput($event)"></textarea>
+          
+          <div class="flex justify-end mt-3">
+            <button class="rounded-xl px-4 py-2 bg-amber-500 text-white disabled:opacity-60"
+                    [disabled]="submitting() || newText().trim().length === 0"
+                    (click)="submitReview()">Post Review</button>
+          </div>
+        </div>
+      } @else {
+        <div class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-orange-700">
+          <a [routerLink]="['/login']" [queryParams]="{ returnUrl: '/movies/' + movieId }" class="font-medium underline">Sign in</a>
+          to write a review.
+        </div>
+      }
 
       @if (loading()) {
         <div class="flex justify-center items-center py-12">
@@ -188,6 +219,13 @@ export class MovieReviewsSectionComponent implements OnInit {
   
   private api = inject(ApiService);
 
+  // new fields
+  protected auth = inject(AuthService);
+  private router = inject(Router);
+  protected newRating = signal(8);
+  protected newText = signal('');
+  protected submitting = signal(false);
+
   protected reviewData = signal<PaginatedReviews | null>(null);
   protected loading = signal(true);
   protected error = signal<string | null>(null);
@@ -309,5 +347,52 @@ export class MovieReviewsSectionComponent implements OnInit {
     }
 
     return pages;
+  }
+
+  // new method to leave a review
+  protected submitReview() {
+    if (!this.auth.isAuthenticated() || this.submitting()) return;
+    const text = this.newText().trim();
+    const rating = this.newRating();
+
+    this.submitting.set(true);
+    this.api.post<Review>('/reviews', { movie_id: this.movieId, rating, review_text: text || null }).subscribe({
+      next: (r) => {
+        // Prepend into the existing list and bump count
+        const data = this.reviewData();
+        if (data) {
+          this.reviewData.set({
+            ...data,
+            reviews: [r, ...data.reviews],
+            totalCount: data.totalCount + 1
+          });
+        } else {
+          this.reviewData.set({
+            reviews: [r], page: 1, pageSize: 10, totalCount: 1,
+            totalPages: 1, hasPreviousPage: false, hasNextPage: false
+          });
+        }
+        this.newText.set('');
+        this.newRating.set(8);
+      },
+      error: (err) => {
+        console.error('Failed to post review', err);
+        alert('Failed to post review');
+      },
+      complete: () => this.submitting.set(false)
+    });
+  }
+
+  // two new helper methods
+  protected onRatingInput(e: Event) {
+    const el = e.target as HTMLInputElement | null;
+    if (!el) return;
+    this.newRating.set(el.valueAsNumber);
+  }
+
+  protected onTextInput(e: Event) {
+    const el = e.target as HTMLTextAreaElement | null;
+    if (!el) return;
+    this.newText.set(el.value);
   }
 }

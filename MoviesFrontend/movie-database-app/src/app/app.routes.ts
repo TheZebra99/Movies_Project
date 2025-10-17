@@ -22,6 +22,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/people/person-detail.component')
       .then(m => m.PersonDetailComponent)
   },
+  
+  {
+    path: 'users/:id', // new endpoint to access other people's profiles
+    loadComponent: () => import('./features/users/user-profile.component')
+      .then(m => m.UserProfileComponent)
+  },
   {
     path: 'login',  // new new page implemented
     loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)

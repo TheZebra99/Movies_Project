@@ -18,6 +18,31 @@ public class UsersController : ControllerBase
         _context = context;
     }
 
+    // GET /api/users/{id}/public - new get user public profile endpoint (NO AUTH REQUIRED)
+    [HttpGet("{id}/public")]
+    [AllowAnonymous] // Override the Admin requirement for this endpoint
+    public async Task<IActionResult> GetUserPublicProfile(int id)
+    {
+        var user = await _context.Users.FindAsync(id);
+        
+        if (user == null)
+            return NotFound(new { error = "User not found" });
+
+        // Return only public information (no email)
+        var publicProfile = new
+        {
+            id = user.id,
+            username = user.username,
+            display_name = user.display_name,
+            profile_pic_url = user.profile_pic_url,
+            creation_date = user.creation_date,
+            role = user.role
+        };
+
+        return Ok(publicProfile);
+    }
+
+
     // GET /api/users - Get all users
     [HttpGet]
     public async Task<IActionResult> GetAllUsers(
