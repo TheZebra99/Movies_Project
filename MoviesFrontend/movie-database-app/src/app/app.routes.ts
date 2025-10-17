@@ -14,6 +14,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/movies/pages/movie-list.component').then(m => m.MovieListComponent)
   },
   {
+    path: 'login',  // new new page implemented
+    loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
+  },
+  {
+    path: 'register',  // new new page implemented
+    loadComponent: () => import('./features/auth/register.component').then(m => m.RegisterComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

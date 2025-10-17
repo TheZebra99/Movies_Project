@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace MoviesAPI.Features.Auth;
 
 [ApiController] // ApiController automatically handles the 400 error codes...
-[Route("auth")]
+[Route("api/auth")]
 public class AuthController : ControllerBase // inherit from base class
 {
     private readonly IAuthService _authService;

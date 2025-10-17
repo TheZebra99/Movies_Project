@@ -1,47 +1,43 @@
 
-// the user object after login
 export interface User {
   id: number;
   email: string;
   username: string;
   display_name: string;
   profile_pic_url?: string;
+  creation_date: string;  // added missing field
   role: UserRole;
 }
 
-// user roles
 export enum UserRole {
   User = 'User',
   Admin = 'Admin'
 }
 
-// what we send to the login endpoint
 export interface LoginRequest {
-  email: string;
+  login: string;      // changed from 'email' to 'login' (can be username OR email)
   password: string;
 }
 
-// what we send to the register endpoint
 export interface RegisterRequest {
   email: string;
   username: string;
   password: string;
-  display_name: string;
+  display_name?: string;  // updated to be optional
 }
 
-// what our .NET API returns after successful login/register
 export interface AuthResponse {
-  token: string;  // JWT token
-  user: User;     // User info
+  user: User;
+  token: string;
 }
 
-// update profile request
 export interface UpdateProfileRequest {
+  email?: string;
+  username?: string;
   display_name?: string;
   profile_pic_url?: string;
 }
 
-// change password request
 export interface ChangePasswordRequest {
   current_password: string;
   new_password: string;
